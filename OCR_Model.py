@@ -1,12 +1,24 @@
 import numpy as np
 import tensorflow as tf
-
 import os
+import gzip
+from mnist import MNIST
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
 tf.compat.v1.enable_eager_execution()
-
 np.random.seed(1)
+
+# f = gzip.open("train-images-idx3-ubyte.gz", "r")
+#
+# print("------------------------------------------------------------------------")
+# print(f.read(784))
+# print("------------------------------------------------------------------------")
+
+mnist_set = MNIST('samples')
+MNtrain_X, MNtrain_Y = mnist_set.load_training()
+
+
+
 class OCRNetwork:
     def __init__(self):
 
@@ -28,17 +40,12 @@ class OCRNetwork:
         Z3 = tf.add(tf.matmul(self.parameters["W3"], A2), self.parameters["b3"])
         return Z3
 
-    # def comp output_cost(self):
-
-
-
-
+    def output_cost(self, Z3, Y):
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits = tf.transpose(Z3), labels = tf.transpose(Y)))
 
 ocr = OCRNetwork()
-
-eg = tf.constant(np.random.randn(784, 1), name = "eg")
-print(eg)
-output = ocr.forward_prop(tf.cast(eg, tf.float32))
+eg = np.array(MNtrain_X[4]).reshape(784, 1)
+output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32))
 
 
 
@@ -46,6 +53,10 @@ print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 print(output.shape)
 tf.print(output)
 tf.print(tf.nn.softmax(tf.transpose(output)), summarize = 50)
+print("")
+tf.print(ocr.output_cost(output, output))
+print("answer = ", MNtrain_Y[4])
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+
 
 # print(ocr.x)
