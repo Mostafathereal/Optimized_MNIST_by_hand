@@ -13,6 +13,7 @@ mb_size = 32
 
 mnist_set = MNIST('samples')
 MNtrain_X, MNtrain_Y = mnist_set.load_training()
+m = len(MNtrain_X)
 
 class OCRNetwork:
     def __init__(self):
@@ -27,13 +28,12 @@ class OCRNetwork:
 
         self.parameters = {"W1": W1, "b1": b1, "W2": W2, "b2": b2, "W3": W3, "b3": b3}
         self.grads = {"dW1", "db1", "dW2", "db2", "dW3", "db3"}
+        self.cache = {"A1", "A2", "A3", "Z3"}
 
     def forward_prop(self, X):
         A1 = tf.nn.relu(tf.add(tf.matmul(self.parameters["W1"], X), self.parameters["b1"]))
         A2 = tf.nn.relu(tf.add(tf.matmul(self.parameters["W2"], A1), self.parameters["b2"]))
 
-        ## why not compute A3 as well ? -> it is done when computing cost
-        ## but would need to do it again for computing actual predictions
         Z3 = tf.add(tf.matmul(self.parameters["W3"], A2), self.parameters["b3"])
         return Z3
 
@@ -44,6 +44,18 @@ class OCRNetwork:
     #     optimizer = tf.train.GradientDescentOptimizer(learning_rate=1e-3)
     #     with tf.GradientTape() as tape:
     #         prediction = forward_prop(MNtrain_X)
+
+    def comput_grads(self, cost, Y):
+        Yhat = tf.convert_to_tensor(self.cache["A3"])
+
+        ## since softmax is a generalization of sigmoid, the last layer output (before activation) has the
+        ## same derivative (of loss with respect to it) as with sigmoid, which is (Yhat - Y)
+        dZ3 = tf.math.subtract(Yhat, Y)
+        self.grads["db3"] = tf.reduce_sum(dZ3, axis = 1, keepdims = True)
+        self.grads["dW3"] = (1/m)*(tf.matmul(dZ3, tf.convert_to_tensor(self.cache["A3"])))
+
+        #dZ2 =
+
 
 
 
