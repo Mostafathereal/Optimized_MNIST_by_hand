@@ -21,6 +21,7 @@ MNtrain_Y = trainY[:60000]
 costs = []
 m = len(MNtrain_X)
 learn_rate = 0.1
+epochs = 1000
 
 class OCRNetwork:
     def __init__(self):
@@ -94,7 +95,25 @@ class OCRNetwork:
         self.grads["db1"] = (1/m)*tf.reduce_sum(dZ1, axis = 1, keepdims = True)
         self.grads["dW1"] = (1/m)*(tf.matmul(dZ1, tf.transpose(tf.dtypes.cast(X, tf.float32))))
 
-    #def grad_desc(self, epochs):
+    def save_params(self, name):
+        # f = open(name, 'w')
+        np.savetxt(name + "W1", (self.parameters["W1"]).numpy())
+        np.savetxt(name + "W2", (self.parameters["W2"]).numpy())
+        np.savetxt(name + "W3", (self.parameters["W3"]).numpy())
+        np.savetxt(name + "b1", (self.parameters["b1"]).numpy())
+        np.savetxt(name + "b2", (self.parameters["b2"]).numpy())
+        np.savetxt(name + "b3", (self.parameters["b3"]).numpy())
+        # f.write("\n")
+        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["W2"]), separator = ',').numpy()))
+        # f.write("\n")
+        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["W3"]), separator = ',').numpy()))
+        # f.write("\n")
+        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["b1"]), separator = ',').numpy()))
+        # f.write("\n")
+        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["b2"]), separator = ',').numpy()))
+        # f.write("\n")
+        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["b3"]), separator = ',').numpy()))
+        # f.close
 
 
 
@@ -105,7 +124,7 @@ ocr = OCRNetwork()
 
 eg = np.array(MNtrain_X).transpose() / 255
 #print(tf.convert_to_tensor(eg, tf.float32).shape)
-tf.print(tf.convert_to_tensor(eg, tf.float32), summarize = 784)
+# tf.print(tf.convert_to_tensor(eg, tf.float32), summarize = 784)
 # output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
 
 #num_mb = int(len(MNtrain_X) / mb_size)
@@ -124,7 +143,7 @@ print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 # print("\n\n")
 # ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), tf.convert_to_tensor(np.array(MNtrain_X)))
 
-for i in range(30):
+for i in range(epochs):
     output = ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
     #print("output shape = ", output.shape)
     #tf.print(ocr.cache["A3"], summarize = 10)
@@ -163,10 +182,13 @@ for k in range(10000):
         counter += 1
 
 print("accuracy = ", counter / 100)
-#tf.print(ocr.grads, summarize = 100)
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
-# plt.imshow(eg.transpose()[4].reshape(28, 28))
-# plt.show()
+ocr.save_params("saved_params")
+
+plt.plot(list(range(0, epochs)), costs, '.', markersize = 4)
+plt.ylabel('Cost')
+plt.xlabel('epoch')
+plt.show()
 print(list(MNtrain_Y[:10]))
