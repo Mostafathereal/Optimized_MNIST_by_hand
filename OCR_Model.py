@@ -14,24 +14,28 @@ mb_size = 32
 mnist_set = MNIST('samples')
 trainX, trainY = mnist_set.load_training()
 
-MNtrain_X = trainX[:1000]
-MNtrain_Y = trainY[:1000]
+MNtrain_X = trainX[:60000]
+MNtrain_Y = trainY[:60000]
 m = len(MNtrain_X)
+learn_rate = 0.001
 
 class OCRNetwork:
     def __init__(self):
 
         ## Xavier initialization to help avoid vanishing/exploding
-        W1 = tf.compat.v1.get_variable("W1", [16, 784], initializer = tf.initializers.glorot_uniform(seed = 1))
+        W1 = tf.compat.v1.get_variable("W1", [16, 784], initializer = tf.initializers.he_normal(seed = 1))
         b1 = tf.compat.v1.get_variable("b1", [16, 1], initializer = tf.zeros_initializer())
-        W2 = tf.compat.v1.get_variable("W2", [16, 16], initializer = tf.initializers.glorot_uniform(seed = 1))
+        W2 = tf.compat.v1.get_variable("W2", [16, 16], initializer = tf.initializers.he_normal(seed = 1))
         b2 = tf.compat.v1.get_variable("b2", [16, 1], initializer = tf.zeros_initializer())
-        W3 = tf.compat.v1.get_variable("W3", [10, 16], initializer = tf.initializers.glorot_uniform(seed = 1))
+        W3 = tf.compat.v1.get_variable("W3", [10, 16], initializer = tf.initializers.he_normal(seed = 1))
         b3 = tf.compat.v1.get_variable("b3", [10, 1], initializer = tf.zeros_initializer())
 
         self.parameters = {"W1": W1, "b1": b1, "W2": W2, "b2": b2, "W3": W3, "b3": b3}
         self.grads = {"dW1": None, "db1": None, "dW2": None, "db2": None, "dW3": None, "db3": None}
         self.cache = {"A1": None, "A2": None, "A3": None, "Z1": None , "Z2": None, "Z3": None}
+
+        # tf.print(self.parameters, summarize = 20)
+        # print("\n\n END OF PARAMETERS \n\n")
 
     def forward_prop(self, X, Y):
         Z1 = tf.add(tf.matmul(self.parameters["W1"], X), self.parameters["b1"])
@@ -39,13 +43,14 @@ class OCRNetwork:
         Z2 = tf.add(tf.matmul(self.parameters["W2"], A1), self.parameters["b2"])
         A2 = tf.nn.relu(Z2)
         Z3 = tf.add(tf.matmul(self.parameters["W3"], A2), self.parameters["b3"])
-        A3 = tf.transpose(tf.nn.softmax(logits = tf.transpose(Z3), axis = 0))
+        A3 = tf.transpose(tf.nn.softmax(logits = tf.transpose(Z3)))
+        assert(Z3.shape == (10, 60000))
+        assert(A3.shape == (10, 60000))
 
         # print("\n\n\n")
         # tf.print(A3)
         # print(A3.shape)
         # print("\n\n\n")
-
 
         self.cache["Z1"] = Z1
         self.cache["Z2"] = Z2
@@ -53,6 +58,10 @@ class OCRNetwork:
         self.cache["A1"] = A1
         self.cache["A2"] = A2
         self.cache["A3"] = A3
+
+        #tf.print("prediction = \n", self.parameters["W2"], summarize = 20)
+
+
         return Z3
 
     def output_cost(self, Z3, Y):
@@ -69,16 +78,20 @@ class OCRNetwork:
         ## since softmax is a generalization of sigmoid, the last layer output (before activation) has the
         ## same derivative (of loss with respect to it) as with sigmoid, which is (Yhat - Y)
         dZ3 = tf.math.subtract(Yhat, Y)
-        self.grads["db3"] = tf.reduce_sum(dZ3, axis = 1, keepdims = True)
+        self.grads["db3"] = (1/m)*tf.reduce_sum(dZ3, axis = 1, keepdims = True)
         self.grads["dW3"] = (1/m)*(tf.matmul(dZ3, tf.transpose(tf.convert_to_tensor(self.cache["A2"]))))
 
         dZ2 = tf.math.multiply(tf.dtypes.cast((self.cache["Z2"] > 0), float), tf.matmul(tf.transpose(self.parameters["W3"]), dZ3))
-        self.grads["db2"] = tf.reduce_sum(dZ2, axis = 1, keepdims = True)
+        self.grads["db2"] = (1/m)*tf.reduce_sum(dZ2, axis = 1, keepdims = True)
         self.grads["dW2"] = (1/m)*(tf.matmul(dZ2, tf.transpose(tf.convert_to_tensor(self.cache["A1"]))))
 
         dZ1 = tf.math.multiply(tf.dtypes.cast((self.cache["Z1"] > 0), float), tf.matmul(tf.transpose(self.parameters["W2"]), dZ2))
-        self.grads["db1"] = tf.reduce_sum(dZ1, axis = 1, keepdims = True)
-        self.grads["dW1"] = (1/m)*(tf.matmul(dZ1, tf.dtypes.cast(X, float)))
+        self.grads["db1"] = (1/m)*tf.reduce_sum(dZ1, axis = 1, keepdims = True)
+        self.grads["dW1"] = float(1/m)*(tf.matmul(dZ1, tf.dtypes.cast(X, float)))
+
+    #def grad_desc(self, epochs):
+
+
 
 
 # with tf.Session() as sess:
@@ -90,26 +103,67 @@ print("#########################################################################
 
 
 eg = np.array(MNtrain_X).transpose()
-output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
+# output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
 
-num_mb = int(len(MNtrain_X) / mb_size)
+#num_mb = int(len(MNtrain_X) / mb_size)
+
+
 
 #print("num mb = ", num_mb)
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
-print(output.shape)
 #tf.print(output)
 #tf.print(tf.nn.softmax(tf.transpose(output)), summarize = 50)
-print("")
-cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
-tf.print(cost)
-print("answer = ", MNtrain_Y[4])
-print(tf.one_hot(MNtrain_Y[4], 10, axis = 0))
+# cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
 
-ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), np.array(MNtrain_X))
+# print("answer = ", MNtrain_Y[4])
+# print(tf.one_hot(MNtrain_Y[4], 10, axis = 0))
+# print("\n\n")
+# ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), tf.convert_to_tensor(np.array(MNtrain_X)))
 
+for i in range(2):
+    output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
+    print("output shape = ", output.shape)
+    tf.print(ocr.cache["A3"], summarize = 10)
+    cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
+    tf.print("cost = ", cost)
+    ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), tf.convert_to_tensor(np.array(MNtrain_X)))
+    #tf.print("answer = \n", tf.one_hot(MNtrain_Y, 10, axis = 0), summarize = 10)
+    tf.print("prediction = \n", ocr.cache, summarize = 10)
+
+    ocr.parameters["W1"] = tf.math.subtract(ocr.parameters["W1"], learn_rate * (ocr.grads["dW1"]))
+    ocr.parameters["b1"] = tf.math.subtract(ocr.parameters["b1"], learn_rate * (ocr.grads["db1"]))
+    ocr.parameters["W2"] = tf.math.subtract(ocr.parameters["W2"], learn_rate * (ocr.grads["dW2"]))
+    ocr.parameters["b2"] = tf.math.subtract(ocr.parameters["b2"], learn_rate * (ocr.grads["db2"]))
+    ocr.parameters["W3"] = tf.math.subtract(ocr.parameters["W3"], learn_rate * (ocr.grads["dW3"]))
+    ocr.parameters["b3"] = tf.math.subtract(ocr.parameters["b3"], learn_rate * (ocr.grads["db3"]))
+
+    cost = 0.0
+
+
+def max_num(a):
+    max = 0
+    print("len = ", len(a))
+    for i in range(len(a)):
+        if (a[i] > a[max]):
+            max = i
+    return max
+
+
+counter = 0
+answersT = tf.transpose(ocr.cache["A3"])
+for k in range(1000):
+    print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
+    print("doing something")
+    if (int(max_num(answersT[k])) == int(MNtrain_Y[k])):
+        print("success boiiii")
+        counter += 1
+
+print("accuracy = ", counter / 60000)
+#tf.print(ocr.grads, summarize = 100)
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
-plt.imshow(eg.transpose()[4].reshape(28, 28))
-plt.show()
+# plt.imshow(eg.transpose()[4].reshape(28, 28))
+# plt.show()
+print(list(MNtrain_Y[:10]))
