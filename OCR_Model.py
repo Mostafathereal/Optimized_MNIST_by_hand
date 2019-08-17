@@ -18,8 +18,9 @@ trainX, trainY = mnist_set.load_training()
 
 MNtrain_X = trainX[:60000]
 MNtrain_Y = trainY[:60000]
+costs = []
 m = len(MNtrain_X)
-learn_rate = 0.005
+learn_rate = 0.1
 
 class OCRNetwork:
     def __init__(self):
@@ -102,8 +103,8 @@ class OCRNetwork:
 
 ocr = OCRNetwork()
 
-eg = np.array(MNtrain_X).transpose()
-print(tf.convert_to_tensor(eg, tf.float32).shape)
+eg = np.array(MNtrain_X).transpose() / 255
+#print(tf.convert_to_tensor(eg, tf.float32).shape)
 tf.print(tf.convert_to_tensor(eg, tf.float32), summarize = 784)
 # output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
 
@@ -123,28 +124,29 @@ print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 # print("\n\n")
 # ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), tf.convert_to_tensor(np.array(MNtrain_X)))
 
-for i in range(10):
+for i in range(30):
     output = ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
-    print("output shape = ", output.shape)
-    tf.print(ocr.cache["A3"], summarize = 10)
+    #print("output shape = ", output.shape)
+    #tf.print(ocr.cache["A3"], summarize = 10)
     cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
     tf.print("cost = ", cost)
+    costs.append(cost)
     ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), eg)
     #tf.print("answer = \n", tf.one_hot(MNtrain_Y, 10, axis = 0), summarize = 10)
-    tf.print("prediction = \n", ocr.cache, summarize = 10)
+    #tf.print("prediction = \n", ocr.cache, summarize = 10)
 
-    ocr.parameters["W1"] = tf.math.subtract(ocr.parameters["W1"], learn_rate * (ocr.grads["dW1"]))
-    ocr.parameters["b1"] = tf.math.subtract(ocr.parameters["b1"], learn_rate * (ocr.grads["db1"]))
-    ocr.parameters["W2"] = tf.math.subtract(ocr.parameters["W2"], learn_rate * (ocr.grads["dW2"]))
-    ocr.parameters["b2"] = tf.math.subtract(ocr.parameters["b2"], learn_rate * (ocr.grads["db2"]))
-    ocr.parameters["W3"] = tf.math.subtract(ocr.parameters["W3"], learn_rate * (ocr.grads["dW3"]))
-    ocr.parameters["b3"] = tf.math.subtract(ocr.parameters["b3"], learn_rate * (ocr.grads["db3"]))
+    ocr.parameters["W1"] = ocr.parameters["W1"] - (learn_rate * ocr.grads["dW1"])
+    ocr.parameters["b1"] = ocr.parameters["b1"] - (learn_rate * ocr.grads["db1"])
+    ocr.parameters["W2"] = ocr.parameters["W2"] - (learn_rate * ocr.grads["dW2"])
+    ocr.parameters["b2"] = ocr.parameters["b2"] - (learn_rate * ocr.grads["db2"])
+    ocr.parameters["W3"] = ocr.parameters["W3"] - (learn_rate * ocr.grads["dW3"])
+    ocr.parameters["b3"] = ocr.parameters["b3"] - (learn_rate * ocr.grads["db3"])
 
 ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
 
 def max_num(a):
     max = 0
-    print("len = ", len(a))
+    #print("len = ", len(a))
     for i in range(len(a)):
         if (a[i] > a[max]):
             max = i
@@ -154,10 +156,10 @@ def max_num(a):
 counter = 0
 answersT = tf.transpose(ocr.cache["A3"])
 for k in range(10000):
-    print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
-    print("doing something")
+    #print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
+    #print("doing something")
     if (int(max_num(answersT[k])) == int(MNtrain_Y[k])):
-        print("success boiiii")
+        #print("success boiiii")
         counter += 1
 
 print("accuracy = ", counter / 100)
