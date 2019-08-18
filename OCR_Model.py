@@ -16,12 +16,23 @@ trainX, trainY = mnist_set.load_training()
 
 #testX, testY = mnist_set.load_testing()
 
-MNtrain_X = trainX[:60000]
-MNtrain_Y = trainY[:60000]
-costs = []
-m = len(MNtrain_X)
+# MNtrain_X = trainX[:60000]
+# MNtrain_Y = trainY[:60000]
+
+batchesX = []
+batchesY = []
+num_mb = int(len(trainY) / mb_size)
+
+for i in range(num_mb):
+    batchesX.append(list(trainX[i*mb_size:(i + 1) * mb_size]))
+    batchesY.append(list(trainY[i*mb_size:(i + 1) * mb_size]))
+batchesX = np.array(batchesX)
+batchesY = np.array(batchesY)
+
+
+m = len(trainY)
 learn_rate = 0.1
-epochs = 1000
+epochs = 45
 
 class OCRNetwork:
     def __init__(self):
@@ -40,6 +51,8 @@ class OCRNetwork:
         self.grads = {"dW1": None, "db1": None, "dW2": None, "db2": None, "dW3": None, "db3": None}
         self.cache = {"A1": None, "A2": None, "A3": None, "Z1": None , "Z2": None, "Z3": None}
 
+        self.costs = []
+
         # tf.print(self.parameters, summarize = 20)
         # print("\n\n END OF PARAMETERS \n\n")
 
@@ -50,8 +63,8 @@ class OCRNetwork:
         A2 = tf.nn.relu(Z2)
         Z3 = tf.add(tf.matmul(self.parameters["W3"], A2), self.parameters["b3"])
         A3 = tf.transpose(tf.nn.softmax(logits = tf.transpose(Z3)))
-        assert(Z3.shape == (10, 60000))
-        assert(A3.shape == (10, 60000))
+        # assert(Z3.shape == (10, 32))
+        # assert(A3.shape == (10, 32))
 
         # print("\n\n\n")
         # tf.print(A3)
@@ -103,26 +116,33 @@ class OCRNetwork:
         np.savetxt(name + "b1", (self.parameters["b1"]).numpy())
         np.savetxt(name + "b2", (self.parameters["b2"]).numpy())
         np.savetxt(name + "b3", (self.parameters["b3"]).numpy())
-        # f.write("\n")
-        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["W2"]), separator = ',').numpy()))
-        # f.write("\n")
-        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["W3"]), separator = ',').numpy()))
-        # f.write("\n")
-        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["b1"]), separator = ',').numpy()))
-        # f.write("\n")
-        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["b2"]), separator = ',').numpy()))
-        # f.write("\n")
-        # f.write(str(tf.strings.reduce_join(tf.strings.as_string(self.parameters["b3"]), separator = ',').numpy()))
-        # f.close
+
+    def batch_GD(self, epoch, X, Y):
+        for i in range(epoch):
+            output = self.forward_prop(X, Y)
+            cost = self.output_cost(output, tf.one_hot(Y, 10, axis = 0))
+            tf.print("cost = ", cost)
+            self.costs.append(cost)
+            self.compute_grads(cost, tf.one_hot(Y, 10, axis = 0), X)
+
+            self.parameters["W1"] = self.parameters["W1"] - (learn_rate * self.grads["dW1"])
+            self.parameters["b1"] = self.parameters["b1"] - (learn_rate * self.grads["db1"])
+            self.parameters["W2"] = self.parameters["W2"] - (learn_rate * self.grads["dW2"])
+            self.parameters["b2"] = self.parameters["b2"] - (learn_rate * self.grads["db2"])
+            self.parameters["W3"] = self.parameters["W3"] - (learn_rate * self.grads["dW3"])
+            self.parameters["b3"] = self.parameters["b3"] - (learn_rate * self.grads["db3"])
 
 
 
 
 # with tf.Session() as sess:
 
+print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 ocr = OCRNetwork()
+batch = tf.convert_to_tensor(np.array(trainX).transpose() / 255, tf.float32)
+ocr.batch_GD(epochs, batch, trainY)
 
-eg = np.array(MNtrain_X).transpose() / 255
+
 #print(tf.convert_to_tensor(eg, tf.float32).shape)
 # tf.print(tf.convert_to_tensor(eg, tf.float32), summarize = 784)
 # output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
@@ -133,7 +153,9 @@ eg = np.array(MNtrain_X).transpose() / 255
 
 #print("num mb = ", num_mb)
 
-print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
+
+
+
 #tf.print(output)
 #tf.print(tf.nn.softmax(tf.transpose(output)), summarize = 50)
 # cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
@@ -143,25 +165,42 @@ print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 # print("\n\n")
 # ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), tf.convert_to_tensor(np.array(MNtrain_X)))
 
-for i in range(epochs):
-    output = ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
-    #print("output shape = ", output.shape)
-    #tf.print(ocr.cache["A3"], summarize = 10)
-    cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
-    tf.print("cost = ", cost)
-    costs.append(cost)
-    ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), eg)
-    #tf.print("answer = \n", tf.one_hot(MNtrain_Y, 10, axis = 0), summarize = 10)
-    #tf.print("prediction = \n", ocr.cache, summarize = 10)
 
-    ocr.parameters["W1"] = ocr.parameters["W1"] - (learn_rate * ocr.grads["dW1"])
-    ocr.parameters["b1"] = ocr.parameters["b1"] - (learn_rate * ocr.grads["db1"])
-    ocr.parameters["W2"] = ocr.parameters["W2"] - (learn_rate * ocr.grads["dW2"])
-    ocr.parameters["b2"] = ocr.parameters["b2"] - (learn_rate * ocr.grads["db2"])
-    ocr.parameters["W3"] = ocr.parameters["W3"] - (learn_rate * ocr.grads["dW3"])
-    ocr.parameters["b3"] = ocr.parameters["b3"] - (learn_rate * ocr.grads["db3"])
+# output = ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
+# costs.append(float(ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))))
+# for j in range(epochs):
+#     epoch_costs = 0
+#     for i in range(num_mb):
+#         output = ocr.forward_prop(tf.transpose(tf.convert_to_tensor(batchesX[i], tf.float32)), batchesY[i])
+#         cost = ocr.output_cost(output, tf.one_hot(batchesY[i], 10, axis = 0))
+#         epoch_costs += cost
+#         #tf.print("for batch ", i, "cost = ", cost)
+#         ocr.compute_grads(cost, tf.one_hot(batchesY[i], 10, axis = 0), tf.transpose(tf.convert_to_tensor(batchesX[i], tf.float32)))
+#         ocr.parameters["W1"] = ocr.parameters["W1"] - (learn_rate * ocr.grads["dW1"])
+#         ocr.parameters["b1"] = ocr.parameters["b1"] - (learn_rate * ocr.grads["db1"])
+#         ocr.parameters["W2"] = ocr.parameters["W2"] - (learn_rate * ocr.grads["dW2"])
+#         ocr.parameters["b2"] = ocr.parameters["b2"] - (learn_rate * ocr.grads["db2"])
+#         ocr.parameters["W3"] = ocr.parameters["W3"] - (learn_rate * ocr.grads["dW3"])
+#         ocr.parameters["b3"] = ocr.parameters["b3"] - (learn_rate * ocr.grads["db3"])
+#     costs.append(float(epoch_costs / num_mb))
+#     print("EPOCH ", j+1, " COST = ", costs[-1])
 
-ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
+
+
+# for i in range(epochs):
+#     output = ocr.forward_prop(tf.convert_to_tensor(eg, tf.float32), MNtrain_Y)
+#     cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
+#     tf.print("cost = ", cost)
+#     costs.append(cost)
+#     ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), eg)
+#
+#     ocr.parameters["W1"] = ocr.parameters["W1"] - (learn_rate * ocr.grads["dW1"])
+#     ocr.parameters["b1"] = ocr.parameters["b1"] - (learn_rate * ocr.grads["db1"])
+#     ocr.parameters["W2"] = ocr.parameters["W2"] - (learn_rate * ocr.grads["dW2"])
+#     ocr.parameters["b2"] = ocr.parameters["b2"] - (learn_rate * ocr.grads["db2"])
+#     ocr.parameters["W3"] = ocr.parameters["W3"] - (learn_rate * ocr.grads["dW3"])
+#     ocr.parameters["b3"] = ocr.parameters["b3"] - (learn_rate * ocr.grads["db3"])
+
 
 def max_num(a):
     max = 0
@@ -171,13 +210,13 @@ def max_num(a):
             max = i
     return max
 
-
+ocr.forward_prop(tf.convert_to_tensor(batch, tf.float32), trainY)
 counter = 0
 answersT = tf.transpose(ocr.cache["A3"])
 for k in range(10000):
     #print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
     #print("doing something")
-    if (int(max_num(answersT[k])) == int(MNtrain_Y[k])):
+    if (int(max_num(answersT[k])) == int(trainY[k])):
         #print("success boiiii")
         counter += 1
 
@@ -187,8 +226,8 @@ print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 ocr.save_params("saved_params")
 
-plt.plot(list(range(0, epochs)), costs, '.', markersize = 4)
+plt.plot(list(range(0, epochs)), ocr.costs, '.', markersize = 4)
 plt.ylabel('Cost')
 plt.xlabel('epoch')
 plt.show()
-print(list(MNtrain_Y[:10]))
+print(list(trainY[:10]))
