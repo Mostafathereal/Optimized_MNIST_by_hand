@@ -14,25 +14,22 @@ mb_size = 32
 mnist_set = MNIST('samples')
 trainX, trainY = mnist_set.load_training()
 
-#testX, testY = mnist_set.load_testing()
+batchX = tf.transpose(tf.convert_to_tensor(np.array(trainX) / 255, tf.float32))
+batchY = tf.convert_to_tensor(np.array(trainY))
 
-# MNtrain_X = trainX[:60000]
-# MNtrain_Y = trainY[:60000]
-
+num_mb = int(len(trainY) / mb_size)
 batchesX = []
 batchesY = []
-num_mb = int(len(trainY) / mb_size)
-
 for i in range(num_mb):
     batchesX.append(list(trainX[i*mb_size:(i + 1) * mb_size]))
     batchesY.append(list(trainY[i*mb_size:(i + 1) * mb_size]))
-batchesX = np.array(batchesX)
-batchesY = np.array(batchesY)
 
+batchesX = tf.convert_to_tensor(np.array(batchesX) / 255, tf.float32)
+batchesY = tf.convert_to_tensor(np.array(batchesY))
 
 m = len(trainY)
 learn_rate = 0.1
-epochs = 45
+epochs = 38
 
 class OCRNetwork:
     def __init__(self):
@@ -53,23 +50,13 @@ class OCRNetwork:
 
         self.costs = []
 
-        # tf.print(self.parameters, summarize = 20)
-        # print("\n\n END OF PARAMETERS \n\n")
-
-    def forward_prop(self, X, Y):
+    def forward_prop(self, X):
         Z1 = tf.add(tf.matmul(self.parameters["W1"], X), self.parameters["b1"])
         A1 = tf.nn.relu(Z1)
         Z2 = tf.add(tf.matmul(self.parameters["W2"], A1), self.parameters["b2"])
         A2 = tf.nn.relu(Z2)
         Z3 = tf.add(tf.matmul(self.parameters["W3"], A2), self.parameters["b3"])
         A3 = tf.transpose(tf.nn.softmax(logits = tf.transpose(Z3)))
-        # assert(Z3.shape == (10, 32))
-        # assert(A3.shape == (10, 32))
-
-        # print("\n\n\n")
-        # tf.print(A3)
-        # print(A3.shape)
-        # print("\n\n\n")
 
         self.cache["Z1"] = Z1
         self.cache["Z2"] = Z2
@@ -77,9 +64,6 @@ class OCRNetwork:
         self.cache["A1"] = A1
         self.cache["A2"] = A2
         self.cache["A3"] = A3
-
-        #tf.print("prediction = \n", self.parameters["W2"], summarize = 20)
-
 
         return Z3
 
@@ -119,7 +103,7 @@ class OCRNetwork:
 
     def batch_GD(self, epoch, X, Y):
         for i in range(epoch):
-            output = self.forward_prop(X, Y)
+            output = self.forward_prop(X)
             cost = self.output_cost(output, tf.one_hot(Y, 10, axis = 0))
             tf.print("cost = ", cost)
             self.costs.append(cost)
@@ -132,6 +116,26 @@ class OCRNetwork:
             self.parameters["W3"] = self.parameters["W3"] - (learn_rate * self.grads["dW3"])
             self.parameters["b3"] = self.parameters["b3"] - (learn_rate * self.grads["db3"])
 
+    ## the 'T' in "batchesT" is because each example in the train set individually is transposed (not the matrix as a whole)
+    def minibatch_GD(self, epoch, mb_size, batchesT, Y):
+
+        for j in range(epoch):
+            epoch_costs = 0
+            for i in range(num_mb):
+                output = self.forward_prop(tf.transpose(tf.convert_to_tensor(batchesT[i], tf.float32)))
+                cost = self.output_cost(output, tf.one_hot(Y[i], 10, axis = 0))
+                epoch_costs += cost
+                #tf.print("for batch ", i, "cost = ", cost)
+                self.compute_grads(cost, tf.one_hot(Y[i], 10, axis = 0), tf.transpose(tf.convert_to_tensor(batchesT[i], tf.float32)))
+                self.parameters["W1"] = self.parameters["W1"] - (learn_rate * self.grads["dW1"])
+                self.parameters["b1"] = self.parameters["b1"] - (learn_rate * self.grads["db1"])
+                self.parameters["W2"] = self.parameters["W2"] - (learn_rate * self.grads["dW2"])
+                self.parameters["b2"] = self.parameters["b2"] - (learn_rate * self.grads["db2"])
+                self.parameters["W3"] = self.parameters["W3"] - (learn_rate * self.grads["dW3"])
+                self.parameters["b3"] = self.parameters["b3"] - (learn_rate * self.grads["db3"])
+            self.costs.append(float(epoch_costs / num_mb))
+            print("EPOCH ", j+1, " COST = ", self.costs[-1])
+
 
 
 
@@ -139,8 +143,11 @@ class OCRNetwork:
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 ocr = OCRNetwork()
-batch = tf.convert_to_tensor(np.array(trainX).transpose() / 255, tf.float32)
-ocr.batch_GD(epochs, batch, trainY)
+
+# batch = tf.convert_to_tensor(np.array(trainX).transpose() / 255, tf.float32)
+
+ocr.minibatch_GD(epochs, 32, batchesX, batchesY)
+#ocr.batch_GD(epochs, batchX, batchY)
 
 
 #print(tf.convert_to_tensor(eg, tf.float32).shape)
@@ -210,7 +217,7 @@ def max_num(a):
             max = i
     return max
 
-ocr.forward_prop(tf.convert_to_tensor(batch, tf.float32), trainY)
+ocr.forward_prop(tf.convert_to_tensor(batchX, tf.float32))
 counter = 0
 answersT = tf.transpose(ocr.cache["A3"])
 for k in range(10000):
