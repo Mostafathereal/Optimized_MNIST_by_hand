@@ -11,12 +11,12 @@ np.random.seed(1)
 ## default hyperparameter settings, tend to work well for a lot of networks
 Beta1 = 0.9
 Beta2 = 0.999
-Epsilon = 1.0e-3 ## -> used to avaid division by zero during Adam Optimization param. update
-learn_rate = 0.01
-epochs = 100
+#Epsilon = 1.0e-8 ## -> used to avaid division by zero during Adam Optimization param. update
+## learn_rate = 0.01
+epochs = 300
 
 #mini-batch size
-mb_size = 64
+mb_size = 128
 
 mnist_set = MNIST('samples')
 trainX, trainY = mnist_set.load_training()
@@ -24,6 +24,7 @@ trainX, trainY = mnist_set.load_training()
 
 
 num_mb = int(len(trainY) / mb_size)
+print("num_mb = ", num_mb)
 batchesX = []
 batchesY = []
 for i in range(num_mb):
@@ -109,7 +110,7 @@ class OCRNetwork:
         self.grads["dW1"] = (1/m)*(tf.matmul(dZ1, tf.transpose(tf.dtypes.cast(X, tf.float32))))
 
     def compute_EWA(self):
-        ## for RMSprop
+        ## exponentially weighted averages of gradients for RMSprop
         ##tf.print(self.V, summarize = 100)
         self.S["dW1"] = (Beta2 * self.S["dW1"]) + ((1 - Beta2) * (self.grads["dW1"] ** 2))
         self.S["dW2"] = (Beta2 * self.S["dW2"]) + ((1 - Beta2) * (self.grads["dW2"] ** 2))
@@ -118,7 +119,7 @@ class OCRNetwork:
         self.S["db2"] = (Beta2 * self.S["db2"]) + ((1 - Beta2) * (self.grads["db2"] ** 2))
         self.S["db3"] = (Beta2 * self.S["db3"]) + ((1 - Beta2) * (self.grads["db3"] ** 2))
 
-        ## for Momentum
+        ## exponentially weighted averages of gradients for Momentum
         self.V["dW1"] = (Beta1 * self.V["dW1"]) + ((1 - Beta1) * self.grads["dW1"])
         self.V["dW2"] = (Beta1 * self.V["dW2"]) + ((1 - Beta1) * self.grads["dW2"])
         self.V["dW3"] = (Beta1 * self.V["dW3"]) + ((1 - Beta1) * self.grads["dW3"])
@@ -135,7 +136,7 @@ class OCRNetwork:
         np.savetxt(name + "b2", (self.parameters["b2"]).numpy())
         np.savetxt(name + "b3", (self.parameters["b3"]).numpy())
 
-    def batch_GD(self, epoch, X, Y, update_method):
+    def batch_GD(self, epoch, X, Y, update_method, LR, Epsilon):
         for i in range(epoch):
             #print("ITERATION: ", i)
             output = self.forward_prop(X)
@@ -144,47 +145,47 @@ class OCRNetwork:
             self.costs.append(cost)
             self.compute_grads(cost, tf.one_hot(Y, 10, axis = 0), X)
             self.compute_EWA()
-            update_method()
+            update_method(LR, Epsilon)
 
     ## the 'T' in "batchesT" is because each example in the train set individually is transposed (not the matrix as a whole)
-    def minibatch_GD(self, epoch, mb_size, batchesT, Y):
+    def minibatch_GD(self, epoch, mb_size, batchesT, Y, update_method, LR, Epsilon):
         for j in range(epoch):
             epoch_costs = 0
             for i in range(num_mb):
                 output = self.forward_prop(tf.transpose(tf.convert_to_tensor(batchesT[i], tf.float32)))
                 cost = self.output_cost(output, tf.one_hot(Y[i], 10, axis = 0))
                 epoch_costs += cost
-                #tf.print("for batch ", i, "cost = ", cost)
                 self.compute_grads(cost, tf.one_hot(Y[i], 10, axis = 0), tf.transpose(tf.convert_to_tensor(batchesT[i], tf.float32)))
-                self.update_params()
+                self.compute_EWA()
+                update_method(LR, Epsilon)
             self.costs.append(float(epoch_costs / num_mb))
             print("EPOCH ", j+1, " COST = ", self.costs[-1])
 
-    def update_params(self):
-        self.parameters["W1"] = self.parameters["W1"] - (learn_rate * self.grads["dW1"])
-        self.parameters["b1"] = self.parameters["b1"] - (learn_rate * self.grads["db1"])
-        self.parameters["W2"] = self.parameters["W2"] - (learn_rate * self.grads["dW2"])
-        self.parameters["b2"] = self.parameters["b2"] - (learn_rate * self.grads["db2"])
-        self.parameters["W3"] = self.parameters["W3"] - (learn_rate * self.grads["dW3"])
-        self.parameters["b3"] = self.parameters["b3"] - (learn_rate * self.grads["db3"])
+    def update_params(self, LR, Epsilon):
+        self.parameters["W1"] = self.parameters["W1"] - (LR * self.grads["dW1"])
+        self.parameters["b1"] = self.parameters["b1"] - (LR * self.grads["db1"])
+        self.parameters["W2"] = self.parameters["W2"] - (LR * self.grads["dW2"])
+        self.parameters["b2"] = self.parameters["b2"] - (LR * self.grads["db2"])
+        self.parameters["W3"] = self.parameters["W3"] - (LR * self.grads["dW3"])
+        self.parameters["b3"] = self.parameters["b3"] - (LR * self.grads["db3"])
 
-    def update_momentum(self):
-        self.parameters["W1"] = self.parameters["W1"] - (learn_rate * self.V["dW1"])
-        self.parameters["b1"] = self.parameters["b1"] - (learn_rate * self.V["db1"])
-        self.parameters["W2"] = self.parameters["W2"] - (learn_rate * self.V["dW2"])
-        self.parameters["b2"] = self.parameters["b2"] - (learn_rate * self.V["db2"])
-        self.parameters["W3"] = self.parameters["W3"] - (learn_rate * self.V["dW3"])
-        self.parameters["b3"] = self.parameters["b3"] - (learn_rate * self.V["db3"])
+    def update_momentum(self, LR, Epsilon):
+        self.parameters["W1"] = self.parameters["W1"] - (LR * self.V["dW1"])
+        self.parameters["b1"] = self.parameters["b1"] - (LR * self.V["db1"])
+        self.parameters["W2"] = self.parameters["W2"] - (LR * self.V["dW2"])
+        self.parameters["b2"] = self.parameters["b2"] - (LR * self.V["db2"])
+        self.parameters["W3"] = self.parameters["W3"] - (LR * self.V["dW3"])
+        self.parameters["b3"] = self.parameters["b3"] - (LR * self.V["db3"])
 
-    def update_RMSprop(self):
-        self.parameters["W1"] = self.parameters["W1"] - (learn_rate * (self.grads["dW1"]/(tf.math.sqrt(self.S["dW1"] + Epsilon))))
-        self.parameters["W2"] = self.parameters["W2"] - (learn_rate * (self.grads["dW2"]/(tf.math.sqrt(self.S["dW2"] + Epsilon))))
-        self.parameters["W3"] = self.parameters["W3"] - (learn_rate * (self.grads["dW3"]/(tf.math.sqrt(self.S["dW3"] + Epsilon))))
-        self.parameters["b1"] = self.parameters["b1"] - (learn_rate * (self.grads["db1"]/(tf.math.sqrt(self.S["db1"] + Epsilon))))
-        self.parameters["b2"] = self.parameters["b2"] - (learn_rate * (self.grads["db2"]/(tf.math.sqrt(self.S["db2"] + Epsilon))))
-        self.parameters["b3"] = self.parameters["b3"] - (learn_rate * (self.grads["db3"]/(tf.math.sqrt(self.S["db3"] + Epsilon))))
+    def update_RMSprop(self, LR, Epsilon):
+        self.parameters["W1"] = self.parameters["W1"] - (LR * (self.grads["dW1"]/(tf.math.sqrt(self.S["dW1"] + Epsilon))))
+        self.parameters["W2"] = self.parameters["W2"] - (LR * (self.grads["dW2"]/(tf.math.sqrt(self.S["dW2"] + Epsilon))))
+        self.parameters["W3"] = self.parameters["W3"] - (LR * (self.grads["dW3"]/(tf.math.sqrt(self.S["dW3"] + Epsilon))))
+        self.parameters["b1"] = self.parameters["b1"] - (LR * (self.grads["db1"]/(tf.math.sqrt(self.S["db1"] + Epsilon))))
+        self.parameters["b2"] = self.parameters["b2"] - (LR * (self.grads["db2"]/(tf.math.sqrt(self.S["db2"] + Epsilon))))
+        self.parameters["b3"] = self.parameters["b3"] - (LR * (self.grads["db3"]/(tf.math.sqrt(self.S["db3"] + Epsilon))))
 
-    def update_adam(self):
+    def update_adam(self, LR, Epsilon):
 
         # Typical implementation of Adam Opt. includes bias correction of the exponentially weighted avg's
         SdW1Corrected = tf.math.divide(self.S["dW1"] , (1 - (Beta2 ** i)))
@@ -200,52 +201,52 @@ class OCRNetwork:
         Vdb2Corrected = tf.math.divide(self.V["db2"] , (1 - (Beta1 ** i)))
         Vdb3Corrected = tf.math.divide(self.V["db3"] , (1 - (Beta1 ** i)))
 
-        self.parameters["W1"] = self.parameters["W1"] - (learn_rate * (VdW1Corrected/(tf.math.sqrt(SdW1Corrected + Epsilon))))
-        self.parameters["W2"] = self.parameters["W2"] - (learn_rate * (VdW2Corrected/(tf.math.sqrt(SdW2Corrected + Epsilon))))
-        self.parameters["W3"] = self.parameters["W3"] - (learn_rate * (VdW3Corrected/(tf.math.sqrt(SdW3Corrected + Epsilon))))
-        self.parameters["b1"] = self.parameters["b1"] - (learn_rate * (Vdb1Corrected/(tf.math.sqrt(Sdb1Corrected + Epsilon))))
-        self.parameters["b2"] = self.parameters["b2"] - (learn_rate * (Vdb2Corrected/(tf.math.sqrt(Sdb2Corrected + Epsilon))))
-        self.parameters["b3"] = self.parameters["b3"] - (learn_rate * (Vdb3Corrected/(tf.math.sqrt(Sdb3Corrected + Epsilon))))
-
-
-
-
-
-    def adam_GD(self, epoch, mb_size, batchesT, Y):
-        for j in range(epoch):
-            epoch_costs = 0
-            for i in range(num_mb):
-                output = self.forward_prop(tf.transpose(tf.convert_to_tensor(batchesT[i], tf.float32)))
-                cost = self.output_cost(output, tf.one_hot(Y[i], 10, axis = 0))
-                epoch_costs += cost
-                tf.print("for batch ", i, "cost = ", cost)
-                self.compute_grads(cost, tf.one_hot(Y[i], 10, axis = 0), tf.transpose(tf.convert_to_tensor(batchesT[i], tf.float32)))
-
-                self.compute_EWA()
-
-            self.costs.append(float(epoch_costs / num_mb))
-            print("EPOCH ", j+1, " COST = ", self.costs[-1])
-
-
-
-
-
+        self.parameters["W1"] = self.parameters["W1"] - (LR * (VdW1Corrected/(tf.math.sqrt(SdW1Corrected + Epsilon))))
+        self.parameters["W2"] = self.parameters["W2"] - (LR * (VdW2Corrected/(tf.math.sqrt(SdW2Corrected + Epsilon))))
+        self.parameters["W3"] = self.parameters["W3"] - (LR * (VdW3Corrected/(tf.math.sqrt(SdW3Corrected + Epsilon))))
+        self.parameters["b1"] = self.parameters["b1"] - (LR * (Vdb1Corrected/(tf.math.sqrt(Sdb1Corrected + Epsilon))))
+        self.parameters["b2"] = self.parameters["b2"] - (LR * (Vdb2Corrected/(tf.math.sqrt(Sdb2Corrected + Epsilon))))
+        self.parameters["b3"] = self.parameters["b3"] - (LR * (Vdb3Corrected/(tf.math.sqrt(Sdb3Corrected + Epsilon))))
 
 # with tf.Session() as sess:
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 ocr = OCRNetwork()
 ocr_RMS = OCRNetwork()
+ocr_Momentum = OCRNetwork()
+ocr_Adam = OCRNetwork()
 
-# batch = tf.convert_to_tensor(np.array(trainX).transpose() / 255, tf.float32)
+MBocr = OCRNetwork()
+MBocr_RMS = OCRNetwork()
+MBocr_Momentum = OCRNetwork()
+MBocr_Adam = OCRNetwork()
 
-#ocr.minibatch_GD(epochs, 1, batchesX, batchesY)
-# tf.print(ocr.S)
-# tf.print(ocr.V)
-#ocr.batch_GD(epochs, batchX, batchY)
-ocr_RMS.batch_GD(epochs, batchX, batchY, ocr.update_RMSprop)
+
+# ocr.batch_GD(epochs, batchX, batchY, ocr.update_params, 0.1, None)
+# print("\n\n\n")
+#
+# ocr_RMS.batch_GD(epochs, batchX, batchY, ocr_RMS.update_RMSprop, 0.01, 1.0e-3)
+# print("\n\n\n")
+#
+# ocr_Adam.batch_GD(epochs, batchX, batchY, ocr_Adam.update_adam, 0.03, 1.0e-4)
+# print("\n\n\n")
+#
+# ocr_Momentum.batch_GD(epochs, batchX, batchY, ocr_Momentum.update_momentum, 0.6, None)
+# print("\n\n\n")
+
+MBocr.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr.update_params, 0.1, None)
 print("\n\n\n")
-ocr.batch_GD(epochs, batchX, batchY, ocr.update_params)
+
+MBocr_RMS.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_RMS.update_RMSprop, 0.01, 1.0e-3)
+print("\n\n\n")
+
+MBocr_Adam.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_Adam.update_adam, 0.03, 1.0e-4)
+print("\n\n\n")
+
+MBocr_Momentum.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_Momentum.update_momentum, 0.6, None)
+print("\n\n\n")
+
+
 
 
 
@@ -277,24 +278,38 @@ def max_num(a):
             max = i
     return max
 
-ocr.forward_prop(tf.convert_to_tensor(batchX, tf.float32))
-counter = 0
-answersT = tf.transpose(ocr.cache["A3"])
-for k in range(10000):
-    #print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
-    #print("doing something")
-    if (int(max_num(answersT[k])) == int(trainY[k])):
-        #print("success boiiii")
-        counter += 1
-
-print("accuracy = ", counter / 100)
+# ocr.forward_prop(tf.convert_to_tensor(batchX, tf.float32))
+# counter = 0
+# answersT = tf.transpose(ocr.cache["A3"])
+# for k in range(10000):
+#     #print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
+#     #print("doing something")
+#     if (int(max_num(answersT[k])) == int(trainY[k])):
+#         #print("success boiiii")
+#         counter += 1
+#
+# print("accuracy = ", counter / 100)
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
-ocr.save_params("saved_params")
+## ocr.save_params("saved_params")
+# plt.plot(list(range(0, epochs)), ocr_RMS.costs, linewidth=1, markersize = 3, label = "RMSprop")
+# plt.plot(list(range(0, epochs)), ocr.costs, linewidth=1, markersize = 3, label = "Batch GD")
+# plt.plot(list(range(0, epochs)), ocr_Adam.costs, linewidth=1, markersize = 3, label = "Adam")
+# plt.plot(list(range(0, epochs)), ocr_Momentum.costs, linewidth=1, markersize = 3, label = "Momentum")
+# plt.title('Batch GD Performance')
 
-plt.plot(list(range(0, epochs)), ocr.costs, '.', list(range(0, epochs)), ocr_RMS.costs, ',', markersize = 3)
-plt.ylabel('Cost')
+
+plt.plot(list(range(0, epochs)), MBocr_RMS.costs, linewidth=1, markersize = 3, label = "RMSprop")
+plt.plot(list(range(0, epochs)), MBocr.costs, linewidth=1, markersize = 3, label = "Batch GD")
+plt.plot(list(range(0, epochs)), MBocr_Adam.costs, linewidth=1, markersize = 3, label = "Adam")
+plt.plot(list(range(0, epochs)), MBocr_Momentum.costs, linewidth=1, markersize = 3, label = "Momentum")
+plt.title('Mini-Batch GD Performance')
+
+
+
+plt.legend(loc = "upper right")
+plt.ylabel('Cost (avg cross-entropy loss)')
 plt.xlabel('epoch')
 plt.show()
 print(list(trainY[:10]))
