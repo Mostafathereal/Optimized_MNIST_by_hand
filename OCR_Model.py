@@ -11,12 +11,12 @@ np.random.seed(1)
 ## default hyperparameter settings, tend to work well for a lot of networks
 Beta1 = 0.9
 Beta2 = 0.999
-Epsilon = 1.0e-2 ## -> used to avaid division by zero during Adam Optimization param. update
-learn_rate = 0.1
+Epsilon = 1.0e-3 ## -> used to avaid division by zero during Adam Optimization param. update
+learn_rate = 0.01
 epochs = 100
 
 #mini-batch size
-mb_size = 1
+mb_size = 64
 
 mnist_set = MNIST('samples')
 trainX, trainY = mnist_set.load_training()
@@ -135,55 +135,19 @@ class OCRNetwork:
         np.savetxt(name + "b2", (self.parameters["b2"]).numpy())
         np.savetxt(name + "b3", (self.parameters["b3"]).numpy())
 
-    def batch_GD(self, epoch, X, Y):
-        output = self.forward_prop(X)
-        cost = self.output_cost(output, tf.one_hot(Y, 10, axis = 0))
-        self.compute_grads(cost, tf.one_hot(Y, 10, axis = 0), X)
-        self.compute_EWA()
-        self.update_params()
-
-
+    def batch_GD(self, epoch, X, Y, update_method):
         for i in range(epoch):
             #print("ITERATION: ", i)
             output = self.forward_prop(X)
             cost = self.output_cost(output, tf.one_hot(Y, 10, axis = 0))
             tf.print("cost = ", cost)
             self.costs.append(cost)
-
             self.compute_grads(cost, tf.one_hot(Y, 10, axis = 0), X)
-
             self.compute_EWA()
-
-
-
-            #tf.print(SdW3Corrected, summarize = 100)
-            #tf.print(VdW3Corrected, summarize = 100)
-
-            # tf.print(SdW3Corrected, summarize = 50)
-
-
-            # self.parameters["W1"] = self.parameters["W1"] - (learn_rate * (VdW1Corrected/(tf.math.sqrt(SdW1Corrected) + Epsilon)))
-            # self.parameters["W2"] = self.parameters["W2"] - (learn_rate * (VdW2Corrected/(tf.math.sqrt(SdW2Corrected) + Epsilon)))
-            # self.parameters["W3"] = self.parameters["W3"] - (learn_rate * (VdW3Corrected/(tf.math.sqrt(SdW3Corrected) + Epsilon)))
-            # self.parameters["b1"] = self.parameters["b1"] - (learn_rate * (Vdb1Corrected/(tf.math.sqrt(Sdb1Corrected) + Epsilon)))
-            # self.parameters["b2"] = self.parameters["b2"] - (learn_rate * (Vdb2Corrected/(tf.math.sqrt(Sdb2Corrected) + Epsilon)))
-            # self.parameters["b3"] = self.parameters["b3"] - (learn_rate * (Vdb3Corrected/(tf.math.sqrt(Sdb3Corrected) + Epsilon)))
-
-            # self.parameters["W1"] = self.parameters["W1"] - (learn_rate * (self.V["dW1"] / (tf.math.sqrt(self.V["dW1"]) + Epsilon)))
-            # self.parameters["b1"] = self.parameters["b1"] - (learn_rate * (self.V["db1"] / (tf.math.sqrt(self.V["db1"]) + Epsilon)))
-            # self.parameters["W2"] = self.parameters["W2"] - (learn_rate * (self.V["dW2"] / (tf.math.sqrt(self.V["dW2"]) + Epsilon)))
-            # self.parameters["b2"] = self.parameters["b2"] - (learn_rate * (self.V["db2"] / (tf.math.sqrt(self.V["db2"]) + Epsilon)))
-            # self.parameters["W3"] = self.parameters["W3"] - (learn_rate * (self.V["dW3"] / (tf.math.sqrt(self.V["dW3"]) + Epsilon)))
-            # self.parameters["b3"] = self.parameters["b3"] - (learn_rate * (self.V["db3"] / (tf.math.sqrt(self.V["db3"]) + Epsilon)))
-
-            # self.update_momentum()
-            # self.update_params()
-            self.update_adam()
-
+            update_method()
 
     ## the 'T' in "batchesT" is because each example in the train set individually is transposed (not the matrix as a whole)
     def minibatch_GD(self, epoch, mb_size, batchesT, Y):
-
         for j in range(epoch):
             epoch_costs = 0
             for i in range(num_mb):
@@ -259,28 +223,6 @@ class OCRNetwork:
 
                 self.compute_EWA()
 
-                ## Typical implementation of Adam Opt. includes bias correction of the exponentially weighted avg's
-                SdW1Corrected = tf.math.divide(self.S["dW1"] , (1 - (Beta2 ** i)))
-                SdW2Corrected = tf.math.divide(self.S["dW2"] , (1 - (Beta2 ** i)))
-                SdW3Corrected = tf.math.divide(self.S["dW3"] , (1 - (Beta2 ** i)))
-                Sdb1Corrected = tf.math.divide(self.S["db1"] , (1 - (Beta2 ** i)))
-                Sdb2Corrected = tf.math.divide(self.S["db2"] , (1 - (Beta2 ** i)))
-                Sdb3Corrected = tf.math.divide(self.S["db3"] , (1 - (Beta2 ** i)))
-                VdW1Corrected = tf.math.divide(self.V["dW1"] , (1 - (Beta1 ** i)))
-                VdW2Corrected = tf.math.divide(self.V["dW2"] , (1 - (Beta1 ** i)))
-                VdW3Corrected = tf.math.divide(self.V["dW3"] , (1 - (Beta1 ** i)))
-                Vdb1Corrected = tf.math.divide(self.V["db1"] , (1 - (Beta1 ** i)))
-                Vdb2Corrected = tf.math.divide(self.V["db2"] , (1 - (Beta1 ** i)))
-                Vdb3Corrected = tf.math.divide(self.V["db3"] , (1 - (Beta1 ** i)))
-
-                self.parameters["W1"] = self.parameters["W1"] - (learn_rate * (VdW1Corrected/(tf.math.sqrt(SdW1Corrected) + Epsilon)))
-                self.parameters["W2"] = self.parameters["W2"] - (learn_rate * (VdW2Corrected/(tf.math.sqrt(SdW2Corrected) + Epsilon)))
-                self.parameters["W3"] = self.parameters["W3"] - (learn_rate * (VdW3Corrected/(tf.math.sqrt(SdW3Corrected) + Epsilon)))
-                self.parameters["b1"] = self.parameters["b1"] - (learn_rate * (Vdb1Corrected/(tf.math.sqrt(Sdb1Corrected) + Epsilon)))
-                self.parameters["b2"] = self.parameters["b2"] - (learn_rate * (Vdb2Corrected/(tf.math.sqrt(Sdb2Corrected) + Epsilon)))
-                self.parameters["b3"] = self.parameters["b3"] - (learn_rate * (Vdb3Corrected/(tf.math.sqrt(Sdb3Corrected) + Epsilon)))
-
-                #self.update_params()
             self.costs.append(float(epoch_costs / num_mb))
             print("EPOCH ", j+1, " COST = ", self.costs[-1])
 
@@ -293,6 +235,7 @@ class OCRNetwork:
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 ocr = OCRNetwork()
+ocr_RMS = OCRNetwork()
 
 # batch = tf.convert_to_tensor(np.array(trainX).transpose() / 255, tf.float32)
 
@@ -300,7 +243,10 @@ ocr = OCRNetwork()
 # tf.print(ocr.S)
 # tf.print(ocr.V)
 #ocr.batch_GD(epochs, batchX, batchY)
-ocr.batch_GD(epochs, batchX, batchY)
+ocr_RMS.batch_GD(epochs, batchX, batchY, ocr.update_RMSprop)
+print("\n\n\n")
+ocr.batch_GD(epochs, batchX, batchY, ocr.update_params)
+
 
 
 
@@ -347,7 +293,7 @@ print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 ocr.save_params("saved_params")
 
-plt.plot(list(range(0, epochs)), ocr.costs, '.', markersize = 4)
+plt.plot(list(range(0, epochs)), ocr.costs, '.', list(range(0, epochs)), ocr_RMS.costs, ',', markersize = 3)
 plt.ylabel('Cost')
 plt.xlabel('epoch')
 plt.show()
