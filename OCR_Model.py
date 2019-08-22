@@ -8,12 +8,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 tf.compat.v1.enable_eager_execution()
 np.random.seed(1)
 
+epochs = 300
+
+
 ## default hyperparameter settings, tend to work well for a lot of networks
 Beta1 = 0.9
 Beta2 = 0.999
-#Epsilon = 1.0e-8 ## -> used to avaid division by zero during Adam Optimization param. update
-## learn_rate = 0.01
-epochs = 300
+
 
 #mini-batch size
 mb_size = 128
@@ -46,13 +47,11 @@ m = len(trainY)
 class OCRNetwork:
     def __init__(self):
 
-        ## Xavier initialization to help avoid vanishing/exploding
-        # W1 = tf.convert_to_tensor(np.random.randn(16, 784) * np.sqrt(2/784))
-
         W1 = tf.compat.v1.get_variable("W1", [16, 784], initializer = tf.initializers.truncated_normal(0, 1, seed = 1, dtype = tf.float32)) * tf.math.sqrt(2/784)
         b1 = tf.compat.v1.get_variable("b1", [16, 1], initializer = tf.zeros_initializer())
         W2 = tf.compat.v1.get_variable("W2", [16, 16], initializer = tf.initializers.truncated_normal(0, 1, seed = 1, dtype = tf.float32)) * tf.math.sqrt(2/16)
         b2 = tf.compat.v1.get_variable("b2", [16, 1], initializer = tf.zeros_initializer())
+        ## Xavier initialization to help avoid vanishing/exploding
         W3 = tf.compat.v1.get_variable("W3", [10, 16], initializer = tf.glorot_uniform_initializer(seed = 1, dtype = tf.float32))
         b3 = tf.compat.v1.get_variable("b3", [10, 1], initializer = tf.zeros_initializer())
 
@@ -84,8 +83,6 @@ class OCRNetwork:
         self.cache["A1"] = A1
         self.cache["A2"] = A2
         self.cache["A3"] = A3
-
-        ##tf.print(A3, summarize = 100)
 
         return Z3
 
@@ -245,29 +242,6 @@ print("\n\n\n")
 
 MBocr_Momentum.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_Momentum.update_momentum, 0.6, None)
 print("\n\n\n")
-
-
-
-
-
-
-#print(tf.convert_to_tensor(eg, tf.float32).shape)
-# tf.print(tf.convert_to_tensor(eg, tf.float32), summarize = 784)
-# output = ocr.forward_prop(tf.convert_to_tensor(eg, np.float32), MNtrain_Y)
-
-#num_mb = int(len(MNtrain_X) / mb_size)
-
-#print("num mb = ", num_mb)
-
-#tf.print(output)
-#tf.print(tf.nn.softmax(tf.transpose(output)), summarize = 50)
-# cost = ocr.output_cost(output, tf.one_hot(MNtrain_Y, 10, axis = 0))
-
-# print("answer = ", MNtrain_Y[4])
-# print(tf.one_hot(MNtrain_Y[4], 10, axis = 0))
-# print("\n\n")
-# ocr.compute_grads(cost, tf.one_hot(MNtrain_Y, 10, axis = 0), tf.convert_to_tensor(np.array(MNtrain_X)))
-
 
 
 def max_num(a):
