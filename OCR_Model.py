@@ -19,13 +19,12 @@ Beta2 = 0.999
 #mini-batch size
 mb_size = 128
 
-mnist_set = MNIST('samples')
+mnist_set = MNIST('datasets')
 trainX, trainY = mnist_set.load_training()
 
 
 
 num_mb = int(len(trainY) / mb_size)
-print("num_mb = ", num_mb)
 batchesX = []
 batchesY = []
 for i in range(num_mb):
