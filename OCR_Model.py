@@ -8,7 +8,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 tf.compat.v1.enable_eager_execution()
 np.random.seed(1)
 
-epochs = 300
+epochs = 200
 
 
 ## default hyperparameter settings, tend to work well for a lot of networks
@@ -21,6 +21,8 @@ mb_size = 128
 
 mnist_set = MNIST('datasets')
 trainX, trainY = mnist_set.load_training()
+BtestX, BtestY = mnist_set.load_testing()
+
 
 
 
@@ -39,6 +41,9 @@ batchX = tf.transpose(tf.convert_to_tensor(np.array(trainX) / 255, tf.float32))
 batchY = tf.convert_to_tensor(np.array(trainY))
 batchesX = tf.convert_to_tensor(np.array(batchesX) / 255, tf.float32)
 batchesY = tf.convert_to_tensor(np.array(batchesY))
+
+testX = tf.transpose(tf.convert_to_tensor(np.array(BtestX) / 255, tf.float32))
+testY = tf.convert_to_tensor(np.array(BtestY))
 
 m = len(trainY)
 
@@ -230,17 +235,17 @@ MBocr_Adam = OCRNetwork()
 # ocr_Momentum.batch_GD(epochs, batchX, batchY, ocr_Momentum.update_momentum, 0.6, None)
 # print("\n\n\n")
 
-MBocr.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr.update_params, 0.1, None)
-print("\n\n\n")
-
-MBocr_RMS.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_RMS.update_RMSprop, 0.01, 1.0e-3)
-print("\n\n\n")
+# MBocr.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr.update_params, 0.1, None)
+# print("\n\n\n")
+#
+# MBocr_RMS.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_RMS.update_RMSprop, 0.01, 1.0e-3)
+# print("\n\n\n")
 
 MBocr_Adam.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_Adam.update_adam, 0.03, 1.0e-4)
 print("\n\n\n")
 
-MBocr_Momentum.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_Momentum.update_momentum, 0.6, None)
-print("\n\n\n")
+# MBocr_Momentum.minibatch_GD(epochs, 64, batchesX, batchesY, MBocr_Momentum.update_momentum, 0.6, None)
+# print("\n\n\n")
 
 
 def max_num(a):
@@ -251,17 +256,17 @@ def max_num(a):
             max = i
     return max
 
-# ocr.forward_prop(tf.convert_to_tensor(batchX, tf.float32))
-# counter = 0
-# answersT = tf.transpose(ocr.cache["A3"])
-# for k in range(10000):
-#     #print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
-#     #print("doing something")
-#     if (int(max_num(answersT[k])) == int(trainY[k])):
-#         #print("success boiiii")
-#         counter += 1
-#
-# print("accuracy = ", counter / 100)
+MBocr_Adam.forward_prop(tf.convert_to_tensor(testX, tf.float32))
+counter = 0
+answersT = tf.transpose(MBocr_Adam.cache["A3"])
+for k in range(10000):
+    #print(int(max_num(answersT[k])), " == ", int(MNtrain_Y[k]))
+    #print("doing something")
+    if (int(max_num(answersT[k])) == int(testY[k])):
+        #print("success boiiii")
+        counter += 1
+
+print("YYEEEEt accuracy = ", counter / 100)
 
 print("RRRRRREEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE")
 
