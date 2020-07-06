@@ -1,4 +1,7 @@
 import numpy as np
+
+## only using tf for weight initialization and cost function. 
+## all learning-related algorithms are implemented by hand
 import tensorflow as tf
 import os
 from mnist import MNIST
