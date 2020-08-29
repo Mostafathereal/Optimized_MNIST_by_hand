@@ -4,7 +4,7 @@
 
 Batch             |  Mini-Batch
 :-------------------------:|:-------------------------:
-![](PerformanceCharts/BatchGD_All_performances(train-cost).jpg)  | ![](PerformanceCharts/Mini-BatchGD_All_performances(train-cost).jpg) 
+![](Performance/BatchGD_All_performances(train-cost).png)  | ![](Performance/Mini-BatchGD_All_performances(train-cost).png) 
 
 
 ## Optimization Algorithms
