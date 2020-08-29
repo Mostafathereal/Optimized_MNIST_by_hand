@@ -2,6 +2,11 @@
 
 ## Performance
 
+Batch             |  Mini-Batch
+:-------------------------:|:-------------------------:
+![](PerformanceCharts/BatchGD_All_performances(train-cost).jpg)  | ![](PerformanceCharts/Mini-BatchGD_All_performances(train-cost).jpg) 
+
+
 ## Optimization Algorithms
 
 ### Momentum Gradient Descent
