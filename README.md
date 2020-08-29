@@ -32,7 +32,7 @@ This algorithm puts Momentum and RMSProp together. It is shown to generalize wel
 - compute momentum gradients
 - compute RMSProp gradients
 - perform bias correction
-- update parameters using both Momentum and RMSProp gradients
+- update parameters using both Momentum and RMSProp corrected gradients
 
 Adam:
 
