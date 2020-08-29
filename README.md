@@ -1,5 +1,8 @@
 # Optimized_MNIST_by_hand
 
+## Overview
+The Optimization Algorithms used in this model rely on exponentially weighted averages. See this medium post for a quick explaination of EWA's https://medium.com/@dhartidhami/exponentially-weighted-averages-5de212b5be46 .
+
 ## Performance
 
 Batch             |  Mini-Batch
@@ -47,6 +50,6 @@ Adam:
 
 
 ## Added Hyper Parameters
-- <a href="https://www.codecogs.com/eqnedit.php?latex=\beta_1" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\beta_1" title="\beta_1" /></a> - First momentum
-- <a href="https://www.codecogs.com/eqnedit.php?latex=\beta_2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\beta_2" title="\beta_1" /></a> - Second Momentum (used in RMSProp & Adam)
-- <a href="https://www.codecogs.com/eqnedit.php?latex=\varepsilon" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\varepsilon" title="\varepsilon" /></a> - ensures that we never divide by ~ 0 which can cause the term in update step to blow up. Usually ~ 10^8
+- <a href="https://www.codecogs.com/eqnedit.php?latex=\beta_1" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\beta_1" title="\beta_1" /></a> - First momentum constant, usually ~ 0.9 optimum
+- <a href="https://www.codecogs.com/eqnedit.php?latex=\beta_2" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\beta_2" title="\beta_1" /></a> - Second Momentum constant (used in RMSProp & Adam), usually ~ 0.999 optimum
+- <a href="https://www.codecogs.com/eqnedit.php?latex=\varepsilon" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\varepsilon" title="\varepsilon" /></a> - ensures that we never divide by ~ 0 which can cause the term in update step to blow up, usually ~ 10^-8
